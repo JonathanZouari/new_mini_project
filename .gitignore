@@ -45,3 +45,6 @@ Thumbs.db
 # Archives
 *.zip
 *.tar.gz
+
+# Railway configuration (contains secrets)
+railway-env-example.txt

@@ -4,6 +4,7 @@ Handles all Google Calendar API operations for appointment scheduling
 """
 
 import os
+import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from google.oauth2 import service_account
@@ -42,18 +43,30 @@ class GoogleCalendarHelper:
     def _initialize_service(self):
         """Initialize Google Calendar API service with service account credentials"""
         try:
-            # Check if credentials file exists
-            if not os.path.exists(self.credentials_path):
-                print(f"❌ Google Calendar credentials not found at: {self.credentials_path}")
+            # Try to load credentials from environment variable first (for Railway)
+            google_creds_json = os.getenv('GOOGLE_CALENDAR_CREDENTIALS')
+
+            if google_creds_json:
+                # Load credentials from environment variable
+                print("📋 Loading Google Calendar credentials from environment variable")
+                credentials_info = json.loads(google_creds_json)
+                credentials = service_account.Credentials.from_service_account_info(
+                    credentials_info,
+                    scopes=SCOPES
+                )
+            elif os.path.exists(self.credentials_path):
+                # Load credentials from file (for local development)
+                print(f"📋 Loading Google Calendar credentials from file: {self.credentials_path}")
+                credentials = service_account.Credentials.from_service_account_file(
+                    self.credentials_path,
+                    scopes=SCOPES
+                )
+            else:
+                print(f"❌ Google Calendar credentials not found")
+                print("   Set GOOGLE_CALENDAR_CREDENTIALS env var or provide credentials file")
                 print("⚠️  Calendar integration will be disabled")
                 self.service = None
                 return
-
-            # Load service account credentials
-            credentials = service_account.Credentials.from_service_account_file(
-                self.credentials_path,
-                scopes=SCOPES
-            )
 
             # Build the Calendar API service
             self.service = build('calendar', 'v3', credentials=credentials)
