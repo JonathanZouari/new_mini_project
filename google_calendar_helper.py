@@ -7,6 +7,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict
+from zoneinfo import ZoneInfo
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -18,6 +19,10 @@ from config.settings import (
     DEFAULT_TIMEZONE,
     DEFAULT_REMINDERS
 )
+
+# Timezone constants
+ISRAEL_TZ = ZoneInfo(DEFAULT_TIMEZONE)  # Asia/Jerusalem
+UTC_TZ = ZoneInfo('UTC')
 
 # =============================================================================
 # CONFIGURATION
@@ -224,18 +229,22 @@ Please choose another time."""
         Check if there's a conflicting event in the calendar
 
         Args:
-            start_datetime: Start time of proposed event
-            end_datetime: End time of proposed event
+            start_datetime: Start time of proposed event (timezone-aware, Israel time)
+            end_datetime: End time of proposed event (timezone-aware, Israel time)
 
         Returns:
             Dict with conflict details if found, None otherwise
         """
         try:
-            # Query events in the time range
+            # Convert Israel time to UTC for API query
+            start_utc = start_datetime.astimezone(UTC_TZ)
+            end_utc = end_datetime.astimezone(UTC_TZ)
+
+            # Query events in the time range (API expects RFC3339 format)
             events_result = self.service.events().list(
                 calendarId=self.calendar_id,
-                timeMin=start_datetime.isoformat() + 'Z',
-                timeMax=end_datetime.isoformat() + 'Z',
+                timeMin=start_utc.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                timeMax=end_utc.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 singleEvents=True,
                 orderBy='startTime'
             ).execute()
@@ -247,16 +256,19 @@ Please choose another time."""
                 event_start = event['start'].get('dateTime', event['start'].get('date'))
                 event_end = event['end'].get('dateTime', event['end'].get('date'))
 
-                # Parse event times
-                event_start_dt = datetime.fromisoformat(event_start.replace('Z', '+00:00'))
-                event_end_dt = datetime.fromisoformat(event_end.replace('Z', '+00:00'))
+                # Parse event times to timezone-aware datetimes
+                event_start_dt = self._parse_event_datetime(event_start)
+                event_end_dt = self._parse_event_datetime(event_end)
 
-                # Check for overlap
+                # Check for overlap (both are now timezone-aware)
                 if (start_datetime < event_end_dt and end_datetime > event_start_dt):
+                    # Convert to Israel time for display
+                    event_start_israel = event_start_dt.astimezone(ISRAEL_TZ)
+                    event_end_israel = event_end_dt.astimezone(ISRAEL_TZ)
                     return {
                         'summary': event.get('summary', 'Untitled'),
-                        'start_time': event_start_dt.strftime('%H:%M'),
-                        'end_time': event_end_dt.strftime('%H:%M')
+                        'start_time': event_start_israel.strftime('%H:%M'),
+                        'end_time': event_end_israel.strftime('%H:%M')
                     }
 
             return None
@@ -265,21 +277,53 @@ Please choose another time."""
             print(f"⚠️ Error checking for conflicts: {str(e)}")
             return None  # If check fails, allow booking (fail open)
 
+    def _parse_event_datetime(self, dt_string: str) -> datetime:
+        """
+        Parse event datetime string from Google Calendar API to timezone-aware datetime
+
+        Args:
+            dt_string: DateTime string from API (can be ISO format with timezone or date only)
+
+        Returns:
+            Timezone-aware datetime object
+        """
+        try:
+            # Handle 'Z' suffix (UTC)
+            if dt_string.endswith('Z'):
+                dt_string = dt_string[:-1] + '+00:00'
+
+            # Parse ISO format with timezone
+            parsed = datetime.fromisoformat(dt_string)
+
+            # If no timezone info, assume Israel timezone
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=ISRAEL_TZ)
+
+            return parsed
+
+        except ValueError:
+            # Handle date-only format (all-day events)
+            parsed = datetime.strptime(dt_string, '%Y-%m-%d')
+            return parsed.replace(tzinfo=ISRAEL_TZ)
+
     def _parse_datetime(self, date_str: str, time_str: str) -> datetime:
         """
-        Parse date and time strings into datetime object
+        Parse date and time strings into timezone-aware datetime object
 
         Args:
             date_str: Date in YYYY-MM-DD format
             time_str: Time in HH:MM format (24-hour)
 
         Returns:
-            datetime object with Israel timezone
+            Timezone-aware datetime object in Israel timezone (Asia/Jerusalem)
         """
         try:
             # Combine date and time
             datetime_str = f"{date_str} {time_str}"
             parsed_datetime = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M")
+
+            # Add Israel timezone to make it timezone-aware
+            parsed_datetime = parsed_datetime.replace(tzinfo=ISRAEL_TZ)
 
             return parsed_datetime
 
