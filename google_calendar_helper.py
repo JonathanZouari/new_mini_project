@@ -129,16 +129,14 @@ class GoogleCalendarHelper:
                     message = f"""⚠️ המשבצת תפוסה!
 📅 תאריך: {date}
 🕐 שעה: {time}
-❌ כבר קיימת פגישה: "{conflict['summary']}"
-⏰ {conflict['start_time']} - {conflict['end_time']}
+❌ הזמן הזה כבר תפוס
 
 אנא בחר זמן אחר."""
                 else:
                     message = f"""⚠️ Time slot is occupied!
 📅 Date: {date}
 🕐 Time: {time}
-❌ Existing appointment: "{conflict['summary']}"
-⏰ {conflict['start_time']} - {conflict['end_time']}
+❌ This time is already booked
 
 Please choose another time."""
 
