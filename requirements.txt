@@ -1,0 +1,24 @@
+# Flask and Web Server
+flask>=3.0.0
+python-dotenv>=1.0.0
+
+# Twilio Integration
+twilio>=8.10.0
+
+# CrewAI Framework
+crewai>=0.28.0
+crewai-tools>=0.12.0
+
+# OpenAI API
+openai>=1.0.0
+
+# Google Calendar API
+google-auth>=2.23.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.108.0
+
+# Additional Dependencies
+pydantic>=2.5.0
+requests>=2.31.0
+pyyaml>=6.0.0

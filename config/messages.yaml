@@ -1,0 +1,18 @@
+# Response messages for WhatsApp Appointment Scheduler
+
+responses:
+  extraction_failed:
+    hebrew: "לא הצלחתי לחלץ את פרטי הפגישה. אנא נסה שוב."
+    english: "Could not extract appointment details. Please try again."
+
+  unrelated:
+    hebrew: |
+      מצטער, אני עוזר לקביעת פגישות 📅
+      איך אוכל לעזור לך לקבוע פגישה?
+    english: |
+      Sorry, I'm a scheduling assistant 📅
+      How can I help you book an appointment?
+
+  error:
+    hebrew: "מצטער, אירעה שגיאה. אנא נסה שוב."
+    english: "Sorry, an error occurred. Please try again."

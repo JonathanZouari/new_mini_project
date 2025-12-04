@@ -1,0 +1,56 @@
+# Task definitions for WhatsApp Appointment Scheduler
+
+route_message:
+  description: |
+    Classify this message into ONE category:
+
+    MESSAGE: "{user_message}"
+
+    Categories:
+    - APPOINTMENT: Has specific date/time (e.g., "tomorrow at 3pm", "מחר ב-10")
+    - GENERAL: Questions about scheduling (e.g., "how do I book?", "איך קובעים?")
+    - UNRELATED: Not about scheduling
+
+    Return ONLY JSON:
+    {{"category": "APPOINTMENT/GENERAL/UNRELATED", "language": "hebrew/english"}}
+
+  expected_output: "JSON with category and language"
+
+extract_datetime:
+  description: |
+    Extract appointment details:
+
+    MESSAGE: "{user_message}"
+    TODAY: {today}
+
+    Convert:
+    - "tomorrow" / "מחר" → add 1 day to today
+    - "3pm" → 15:00
+    - "בבוקר" → 09:00
+
+    Return JSON:
+    {{
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM",
+        "title": "Meeting title",
+        "duration": 60
+    }}
+
+  expected_output: "JSON with date, time, title, duration"
+
+answer_general:
+  description: |
+    Answer this scheduling question:
+
+    MESSAGE: "{user_message}"
+    LANGUAGE: {language}
+
+    Guidelines:
+    - Be friendly and helpful
+    - Explain how to book (need date, time, purpose)
+    - Give examples
+    - Use emojis
+    - Keep it short (WhatsApp)
+    - Respond in {language}
+
+  expected_output: "Friendly helpful response in the user's language"
