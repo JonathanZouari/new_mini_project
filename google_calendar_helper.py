@@ -122,6 +122,33 @@ class GoogleCalendarHelper:
             start_datetime = self._parse_datetime(date, time)
             end_datetime = start_datetime + timedelta(minutes=duration)
 
+            # Check for conflicts
+            conflict = self._check_time_conflict(start_datetime, end_datetime)
+            if conflict:
+                if language == "hebrew":
+                    message = f"""⚠️ המשבצת תפוסה!
+📅 תאריך: {date}
+🕐 שעה: {time}
+❌ כבר קיימת פגישה: "{conflict['summary']}"
+⏰ {conflict['start_time']} - {conflict['end_time']}
+
+אנא בחר זמן אחר."""
+                else:
+                    message = f"""⚠️ Time slot is occupied!
+📅 Date: {date}
+🕐 Time: {time}
+❌ Existing appointment: "{conflict['summary']}"
+⏰ {conflict['start_time']} - {conflict['end_time']}
+
+Please choose another time."""
+
+                return {
+                    'success': False,
+                    'message': message,
+                    'event_link': None,
+                    'event_id': None
+                }
+
             # Prepare event body
             event = {
                 'summary': title,
@@ -193,6 +220,52 @@ class GoogleCalendarHelper:
                 'event_link': None,
                 'event_id': None
             }
+
+    def _check_time_conflict(self, start_datetime: datetime, end_datetime: datetime) -> Optional[Dict]:
+        """
+        Check if there's a conflicting event in the calendar
+
+        Args:
+            start_datetime: Start time of proposed event
+            end_datetime: End time of proposed event
+
+        Returns:
+            Dict with conflict details if found, None otherwise
+        """
+        try:
+            # Query events in the time range
+            events_result = self.service.events().list(
+                calendarId=self.calendar_id,
+                timeMin=start_datetime.isoformat() + 'Z',
+                timeMax=end_datetime.isoformat() + 'Z',
+                singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+
+            events = events_result.get('items', [])
+
+            # Check if any event overlaps
+            for event in events:
+                event_start = event['start'].get('dateTime', event['start'].get('date'))
+                event_end = event['end'].get('dateTime', event['end'].get('date'))
+
+                # Parse event times
+                event_start_dt = datetime.fromisoformat(event_start.replace('Z', '+00:00'))
+                event_end_dt = datetime.fromisoformat(event_end.replace('Z', '+00:00'))
+
+                # Check for overlap
+                if (start_datetime < event_end_dt and end_datetime > event_start_dt):
+                    return {
+                        'summary': event.get('summary', 'Untitled'),
+                        'start_time': event_start_dt.strftime('%H:%M'),
+                        'end_time': event_end_dt.strftime('%H:%M')
+                    }
+
+            return None
+
+        except Exception as e:
+            print(f"⚠️ Error checking for conflicts: {str(e)}")
+            return None  # If check fails, allow booking (fail open)
 
     def _parse_datetime(self, date_str: str, time_str: str) -> datetime:
         """
